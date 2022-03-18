@@ -1,0 +1,33 @@
+{
+	"title": "JSON tagged file options",
+	"type": "object",
+	"definitions": {
+		"Source": {
+			"anyOf": [
+				{}
+			]
+		}
+
+	},
+	"properties": {
+		"loaders": {
+			"type": "array",
+			"items": {
+				"type": "object"
+			}
+		},
+		"destructure": { "type": "boolean" },
+		"defaultExportName": { "type": "string" },
+		"inputEsModule": { "type": "boolean" },
+		"outputEsModule": { "type": "boolean" },
+		"validationErrorsAsWarnings": { "type": "boolean" },
+		"extras": {
+			"type": "object"
+		},
+		"schema": {
+			"type": "object"
+		}
+	},
+	"required": ["loaders"],
+	"additionalProperties": false
+}
