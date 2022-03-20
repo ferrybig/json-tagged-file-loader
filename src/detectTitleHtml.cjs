@@ -19,7 +19,7 @@ module.exports = function detectTitle(html, {
 	defaultValue = null,
 	limit = 1024,
 }) {
-	const match = html.substring(0, limit).match(/<h[1-6](?: [^=>]+(?:=[^=>]+))*>(.*)<\/h[1-6]>/m);
+	const match = html.substring(0, limit).match(/<h[1-6](?: [^=>]+(?:=[^=>]+))*?>(.*?)<\/h[1-6]>/m);
 	if (!match) {
 		return defaultValue;
 	}
