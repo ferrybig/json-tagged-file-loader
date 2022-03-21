@@ -1,6 +1,7 @@
 import path from 'path';
 import { runLoaders } from "loader-runner";
 import { validate } from "schema-utils";
+import yaml from 'js-yaml';
 
 function doRunLoaders(opts) {
 	return new Promise((resolve, reject) => {
@@ -33,7 +34,7 @@ function writeImport(esModule, variable, from) {
 	}
 }
 
-function breakApart(buffer) {
+function breakApartJson(buffer) {
 	let done = false;
 	let quote = false;
 	let escape = 2;
@@ -87,6 +88,69 @@ function breakApart(buffer) {
 		throw new Error("Markdown file is not tagged with a markdown tag!");
 	}
 }
+
+function breakApartFrontMatter(buffer) {
+	let state = 'begin'; // begin, front-matter
+	let line = '';
+	let y = '\n';
+	let i;
+	let done = false;
+	for (i = 0; i < buffer.length && !done; i++) {
+		const c = buffer[i];
+		if (c === '\r') continue;
+		line += c;
+		if (c == '\n') {
+			switch(state) {
+				case 'begin':
+					if (line === '---\n') {
+						state = 'front-matter';
+					} else {
+						throw new Error("Markdown file does not start with ---, found: " + line);
+					}
+					break;
+				case 'front-matter':
+					if (line === '---\n') {
+						done = true;
+					} else {
+						y += line;
+					}
+					break;
+			}
+			line = '';
+		}
+	}
+	if (done) {
+		return {
+			json: yaml.load(y),
+			md: buffer.substring(i),
+		}
+	} else {
+		throw new Error("Markdown file is not tagged with a markdown tag!");
+	}
+}
+
+function breakApart(buffer, parser) {
+	switch(parser) {
+		case 'auto':
+			return breakApart(buffer, buffer.substring(0, 3) === '---' ? 'front-matter' : 'json');
+		case 'json':
+			return breakApartJson(buffer);
+		case 'front-matter':
+			return breakApartFrontMatter(buffer);
+		default:
+
+	}
+}
+
+function makeKeyExport(key, value, extra) {
+	if (extra instanceof Function) {
+		return extra(value, key);
+	} else if (extra === 'require') {
+		return value === null || value === undefined ? 'null' : `require(${JSON.stringify(value)})`;
+	} else {
+		return JSON.stringify(value);
+	}
+}
 /**
  *
  * @param {string} content Content of the resource file
@@ -104,9 +168,10 @@ export default async function taggedMarkdownLoader(buffer, map, meta) {
 		validationErrorsAsWarnings = false,
 		extras = {},
 		schema: parsedSchema,
+		parser = 'auto',
 	} = this.getOptions();
 
-	const { json, md } = breakApart(buffer);
+	const { json, md } = breakApart(buffer, parser);
 	try {
 		validate(parsedSchema, json, { name: this.resource });
 	} catch(e) {
@@ -197,12 +262,16 @@ export default async function taggedMarkdownLoader(buffer, map, meta) {
 	if (inputEsModule && !outputEsModule) {
 		text = text.replace(new RegExp(`export default ${defaultExportName};\n*$`, 'm'), `module.exports = ${defaultExportName};\n`);
 	}
-	if (destructure !== false) {
+	if (destructure === true) {
 		for (const [key, value] of Object.entries(json)) {
-			text += writeExport(outputEsModule, key, JSON.stringify(value));
+			text += writeExport(outputEsModule, key, makeKeyExport(key, value, extras[key]));
 		}
 	} else {
-		text += writeExport(outputEsModule, typeof destructure === 'string' ? destructure : 'metadata', JSON.stringify(json));
+		text += writeExport(
+			outputEsModule,
+			typeof destructure === 'string' ? destructure : 'metadata',
+			`{${Object.entries(json).map(a => makeKeyExport(a[0], a[1], extras[a[0]]))}}`,
+		);
 	}
 	text += writeExport(outputEsModule, 'slug', JSON.stringify(slug));
 	for(const [key, value] of Object.entries(extras)) {

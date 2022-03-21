@@ -16,6 +16,10 @@
 				"type": "object"
 			}
 		},
+		"parser": {
+			"type": "string",
+			"enum": ["auto", "json", "front-matter"]
+		},
 		"destructure": { "type": "boolean" },
 		"defaultExportName": { "type": "string" },
 		"inputEsModule": { "type": "boolean" },

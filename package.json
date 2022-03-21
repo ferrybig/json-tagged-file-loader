@@ -9,6 +9,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "js-yaml": "^4.1.0",
     "loader-runner": "^4.2.0",
     "schema-utils": "^4.0.0"
   }
